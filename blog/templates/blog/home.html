@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Главная страница{% endblock %}
+{% block content %}
+  <h1>Список статей</h1>
+  <div class="list-group">
+    {% for article in articles %}
+      <a href="{{ article.get_absolute_url }}" class="list-group-item list-group-item-action">
+        <div class="row">
+          <div class="col-md-8">
+            <h5>{{ article.title }}</h5>
+            <p>{{ article.content|truncatewords:30 }}</p>
+          </div>
+          <div class="col-md-4">
+            {% if article.image %}
+              <img src="{{ article.image.url }}" class="img-fluid" alt="{{ article.title }}">
+            {% endif %}
+          </div>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+
+  <nav aria-label="Страницы">
+    <ul class="pagination justify-content-center mt-4">
+      {% if articles.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ articles.previous_page_number }}">Предыдущая</a>
+        </li>
+      {% endif %}
+      {% for num in articles.paginator.page_range %}
+        <li class="page-item {% if articles.number == num %}active{% endif %}">
+          <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+        </li>
+      {% endfor %}
+      {% if articles.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ articles.next_page_number }}">Следующая</a>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+{% endblock %}

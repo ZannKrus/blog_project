@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ article.title }}{% endblock %}
+{% block content %}
+  <article>
+    <h1>{{ article.title }}</h1>
+    {% if article.image %}
+      <img src="{{ article.image.url }}" class="img-fluid" alt="{{ article.title }}">
+    {% endif %}
+    <p class="text-muted">Опубликовано: {{ article.published_date|date:"d.m.Y" }}</p>
+    <div>{{ article.content|linebreaks }}</div>
+  </article>
+
+  <hr>
+
+  <section id="comments">
+    <h2>Комментарии</h2>
+    {% for comment in article.comments.all %}
+      <div class="mb-3">
+        <strong>{{ comment.author }}</strong> <small>{{ comment.created_date|date:"d.m.Y H:i" }}</small>
+        <p>{{ comment.content }}</p>
+      </div>
+    {% empty %}
+      <p>Комментариев пока нет.</p>
+    {% endfor %}
+  </section>
+
+  <hr>
+
+  <section id="add-comment" class="mt-5">
+    <h2 class="mb-4">Оставить комментарий</h2>
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="id_author" class="form-label">Ваше имя</label>
+            {{ comment_form.author }}
+          </div>
+          <div class="mb-3">
+            <label for="id_content" class="form-label">Комментарий</label>
+            {{ comment_form.content }}
+          </div>
+          <button type="submit" class="btn btn-primary">Отправить</button>
+        </form>
+      </div>
+    </div>
+  </section>
+  
+{% endblock %}
