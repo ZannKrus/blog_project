@@ -1,0 +1,246 @@
+blog\models.py:
+from django.db import models
+from django.utils import timezone
+from django.urls import reverse
+
+class Category(models.Model):
+    name = models.CharField("Название", max_length=100, unique=True)
+    slug = models.SlugField("Слаг", max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Категория"
+        verbose_name_plural = "Категории"
+
+class Article(models.Model):
+    title = models.CharField("Название", max_length=200)
+    slug = models.SlugField("Слаг", max_length=200, unique=True)
+    content = models.TextField("Содержимое")
+    published_date = models.DateTimeField("Дата публикации", default=timezone.now)
+    image = models.ImageField("Изображение", upload_to='articles/', blank=True, null=True)
+    category = models.ForeignKey('Category', verbose_name="Категория", on_delete=models.SET_NULL, null=True, blank=True, related_name='articles')
+
+    def __str__(self):
+        return self.title
+
+    def get_absolute_url(self):
+        return reverse('article_detail', args=[self.slug])
+    
+    class Meta:
+        verbose_name = "Статья"
+        verbose_name_plural = "Статьи"
+
+
+class Comment(models.Model):
+    article = models.ForeignKey(Article, verbose_name="Статья", on_delete=models.CASCADE, related_name='comments')
+    author = models.CharField("Имя", max_length=80)
+    content = models.TextField("Комментарий")
+    created_date = models.DateTimeField("Дата создания", auto_now_add=True)
+    approved = models.BooleanField("Одобрен", default=True)
+
+    def __str__(self):
+        return f'Комментарий от {self.author}'
+    
+    class Meta:
+        verbose_name = "Комментарий"
+        verbose_name_plural = "Комментарии"
+blog\forms.py:
+from django import forms
+from .models import Comment
+
+class CommentForm(forms.ModelForm):
+    class Meta:
+        model = Comment
+        fields = ['author', 'content']
+        labels = {
+            'author': 'Имя',
+            'content': 'Комментарий'
+        }
+blog\admin.py:
+from django.contrib import admin
+from .models import Article, Comment, Category
+
+@admin.register(Article)
+class ArticleAdmin(admin.ModelAdmin):
+    list_display = ('title', 'published_date')
+    prepopulated_fields = {'slug': ('title',)}
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('article', 'author', 'created_date', 'approved')
+    list_filter = ('approved', 'created_date')
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    prepopulated_fields = {'slug': ('name',)}
+blog\templates\base.html:
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Мой Блог{% endblock %}</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="{% url 'home' %}">Мой Блог</a>
+    </nav>
+    <div class="container mt-4">
+        {% block content %}{% endblock %}
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+blog\templates\blog\home.html:
+{% extends "base.html" %}
+{% block title %}Главная страница{% endblock %}
+{% block content %}
+  <h1>Список статей</h1>
+  <div class="list-group">
+    {% for article in articles %}
+      <a href="{{ article.get_absolute_url }}" class="list-group-item list-group-item-action">
+        <div class="row">
+          <div class="col-md-8">
+            <h5>{{ article.title }}</h5>
+            <p>{{ article.content|truncatewords:30 }}</p>
+          </div>
+          <div class="col-md-4">
+            {% if article.image %}
+              <img src="{{ article.image.url }}" class="img-fluid" alt="{{ article.title }}">
+            {% endif %}
+          </div>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+
+  <nav aria-label="Страницы">
+    <ul class="pagination justify-content-center mt-4">
+      {% if articles.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ articles.previous_page_number }}">Предыдущая</a>
+        </li>
+      {% endif %}
+      {% for num in articles.paginator.page_range %}
+        <li class="page-item {% if articles.number == num %}active{% endif %}">
+          <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+        </li>
+      {% endfor %}
+      {% if articles.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ articles.next_page_number }}">Следующая</a>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+{% endblock %}
+blog\templates\blog\article_detail.html:
+{% extends "base.html" %}
+{% block title %}{{ article.title }}{% endblock %}
+{% block content %}
+  <article>
+    <h1>{{ article.title }}</h1>
+    {% if article.image %}
+      <img src="{{ article.image.url }}" class="img-fluid" alt="{{ article.title }}">
+    {% endif %}
+    <p class="text-muted">Опубликовано: {{ article.published_date|date:"d.m.Y" }}</p>
+    <div>{{ article.content|linebreaks }}</div>
+  </article>
+
+  <hr>
+
+  <section id="comments">
+    <h2>Комментарии</h2>
+    {% for comment in article.comments.all %}
+      <div class="mb-3">
+        <strong>{{ comment.author }}</strong> <small>{{ comment.created_date|date:"d.m.Y H:i" }}</small>
+        <p>{{ comment.content }}</p>
+      </div>
+    {% empty %}
+      <p>Комментариев пока нет.</p>
+    {% endfor %}
+  </section>
+
+  <hr>
+
+  <section id="add-comment" class="mt-5">
+    <h2 class="mb-4">Оставить комментарий</h2>
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="id_author" class="form-label">Ваше имя</label>
+            {{ comment_form.author }}
+          </div>
+          <div class="mb-3">
+            <label for="id_content" class="form-label">Комментарий</label>
+            {{ comment_form.content }}
+          </div>
+          <button type="submit" class="btn btn-primary">Отправить</button>
+        </form>
+      </div>
+    </div>
+  </section>
+  
+{% endblock %}
+blog\views.py:
+from django.shortcuts import render, get_object_or_404, redirect
+from django.core.paginator import Paginator
+from .models import Article, Comment
+from .forms import CommentForm 
+
+def home(request):
+    articles_list = Article.objects.order_by('-published_date')
+    paginator = Paginator(articles_list, 5) #количество статей на странице
+    page_number = request.GET.get('page')
+    articles = paginator.get_page(page_number)
+    return render(request, 'blog/home.html', {'articles': articles})
+
+def article_detail(request, slug):
+    article = get_object_or_404(Article, slug=slug)
+    comments = article.comments.filter(approved=True)
+    if request.method == 'POST':
+        form = CommentForm(request.POST)
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.article = article
+            comment.save()
+            return redirect(article.get_absolute_url())
+    else:
+        form = CommentForm()
+    return render(request, 'blog/article_detail.html', {
+        'article': article,
+        'comment_form': form,
+        'comments': comments,
+    })
+blog\urls.py:
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.home, name='home'),
+    path('article/<slug:slug>/', views.article_detail, name='article_detail'),
+]
+blog_project\urls.py:
+from django.contrib import admin
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', include('blog.urls')),
+]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+Улучши блок с отображаением и добавлением комментариев используя bootstrap
+

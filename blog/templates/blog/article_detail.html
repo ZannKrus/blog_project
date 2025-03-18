@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load widget_tweaks %}
 {% block title %}{{ article.title }}{% endblock %}
 {% block content %}
   <article>
@@ -14,14 +15,20 @@
 
   <section id="comments">
     <h2>Комментарии</h2>
-    {% for comment in article.comments.all %}
-      <div class="mb-3">
-        <strong>{{ comment.author }}</strong> <small>{{ comment.created_date|date:"d.m.Y H:i" }}</small>
-        <p>{{ comment.content }}</p>
-      </div>
-    {% empty %}
+    {% if comments %}
+      {% for comment in comments %}
+        <div class="card mb-3">
+          <div class="card-body">
+            <h5 class="card-title">
+              {{ comment.author }} <small class="text-muted">{{ comment.created_date|date:"d.m.Y H:i" }}</small>
+            </h5>
+            <p class="card-text">{{ comment.content }}</p>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
       <p>Комментариев пока нет.</p>
-    {% endfor %}
+    {% endif %}
   </section>
 
   <hr>
@@ -30,20 +37,30 @@
     <h2 class="mb-4">Оставить комментарий</h2>
     <div class="card shadow-sm">
       <div class="card-body">
+        {% if comment_form.errors %}
+          <div class="alert alert-danger">
+            Пожалуйста, исправьте ошибки ниже.
+          </div>
+        {% endif %}
         <form method="post">
           {% csrf_token %}
           <div class="mb-3">
-            <label for="id_author" class="form-label">Ваше имя</label>
-            {{ comment_form.author }}
+            <label for="{{ comment_form.author.id_for_label }}" class="form-label">Ваше имя</label>
+            {{ comment_form.author|add_class:"form-control" }}
+            {% for error in comment_form.author.errors %}
+              <div class="text-danger">{{ error }}</div>
+            {% endfor %}
           </div>
           <div class="mb-3">
-            <label for="id_content" class="form-label">Комментарий</label>
-            {{ comment_form.content }}
+            <label for="{{ comment_form.content.id_for_label }}" class="form-label">Комментарий</label>
+            {{ comment_form.content|add_class:"form-control" }}
+            {% for error in comment_form.content.errors %}
+              <div class="text-danger">{{ error }}</div>
+            {% endfor %}
           </div>
           <button type="submit" class="btn btn-primary">Отправить</button>
         </form>
       </div>
     </div>
   </section>
-  
 {% endblock %}
